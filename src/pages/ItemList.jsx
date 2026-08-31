@@ -2,21 +2,26 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../supabaseClient';
+import AlertModal from '../components/modals/AlertModal';
 import './ItemList.css';
 
 export default function ItemList({ session }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // 탭 상태: 'master' (기준정보) | 'orders' (발주/출고관리)
   const [activeTab, setActiveTab] = useState('master');
-  
   const [orders, setOrders] = useState([]); 
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
-  // 기준정보(마스터 데이터) 로드
+  // 모달 상태
+  const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+
+  const showAlert = (title, message, type = 'info') => {
+    setModalState({ isOpen: true, title, message, type });
+  };
+
   useEffect(() => {
     const loadItems = async () => {
       try {
@@ -65,7 +70,6 @@ export default function ItemList({ session }) {
     loadItems();
   }, []);
 
-  // 발주내역 DB에서 불러오기
   const fetchOrders = async () => {
     try {
       const { data, error } = await supabase
@@ -87,14 +91,15 @@ export default function ItemList({ session }) {
     }
   }, [session, activeTab]);
 
-  // 엑셀 업로드 및 DB 저장
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      setIsUploading(false);
+      return;
+    }
 
-    // 파일명에서 YYMMDD 추출 (예: 온누리스토어_무신사뷰티_발주서_(주)제니트리_260828.xlsx)
     const dateMatch = file.name.match(/(\d{6})\.xlsx$/i);
-    let orderDate = new Date().toISOString().split('T')[0]; // 기본값: 오늘
+    let orderDate = new Date().toISOString().split('T')[0];
     if (dateMatch) {
       const yy = dateMatch[1].substring(0, 2);
       const mm = dateMatch[1].substring(2, 4);
@@ -107,8 +112,8 @@ export default function ItemList({ session }) {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target.result;
-        const workbook = XLSX.read(bstr, { type: 'binary' });
+        const arrayBuffer = evt.target.result;
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' }); // 더 안정적인 array 버퍼 사용
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         
         const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
@@ -122,7 +127,7 @@ export default function ItemList({ session }) {
         }
 
         if (headerIndex === -1) {
-          throw new Error("발주서 양식에서 '품목' 열을 찾을 수 없습니다.");
+          throw new Error("발주서 양식에서 '품목' 헤더를 찾을 수 없습니다.");
         }
 
         const data = XLSX.utils.sheet_to_json(sheet, { range: headerIndex, defval: null });
@@ -139,35 +144,42 @@ export default function ItemList({ session }) {
             tracking_number: '',
             status: '발주등록'
           }))
-          .filter(order => order.quantity > 0); // 수량이 있는 것만
+          .filter(order => order.quantity > 0);
 
         if (parsedOrders.length === 0) {
-          alert('저장할 발주 품목이 없습니다. (수량이 0인 항목 제외됨)');
+          showAlert('파싱 실패', '저장할 발주 품목이 없습니다.\n(수량이 0인 항목은 제외됩니다)', 'error');
           setIsUploading(false);
           return;
         }
 
-        // DB에 다중 Insert
         const { error } = await supabase
           .from('onnuri_orders')
           .insert(parsedOrders);
 
         if (error) {
           console.error("DB 저장 오류:", error);
-          alert('데이터베이스 저장 중 오류가 발생했습니다.\n' + error.message);
+          showAlert('DB 저장 실패', '데이터베이스 저장 중 오류가 발생했습니다.\n' + error.message, 'error');
         } else {
-          alert(`엑셀 파싱 및 DB 저장 완료!\n총 ${parsedOrders.length}건의 발주가 등록되었습니다.`);
-          fetchOrders(); // 최신 데이터 다시 불러오기
+          showAlert('저장 성공!', `엑셀 파싱 및 DB 저장 완료!\n총 ${parsedOrders.length}건의 발주가 등록되었습니다.`, 'success');
+          fetchOrders();
         }
       } catch (err) {
         console.error(err);
-        alert('엑셀 파싱 중 오류가 발생했습니다. 온누리스토어 발주서 형식이 맞는지 확인해주세요.');
+        showAlert('오류 발생', '엑셀 파싱 중 오류가 발생했습니다.\n온누리스토어 발주서 형식이 맞는지 확인해주세요.\n' + err.message, 'error');
       } finally {
         setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = ''; // 초기화
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsBinaryString(file);
+    
+    // 에러 핸들링 보강
+    reader.onerror = () => {
+      showAlert('파일 읽기 오류', '파일을 읽는 도중 오류가 발생했습니다.', 'error');
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    reader.readAsArrayBuffer(file);
   };
 
   const handleLogout = async () => {
@@ -361,7 +373,10 @@ export default function ItemList({ session }) {
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                   <input 
-                    type="file" accept=".xlsx, .xls" onChange={handleFileUpload} ref={fileInputRef} style={{ display: 'none' }}
+                    type="file" accept=".xlsx, .xls" 
+                    onChange={handleFileUpload} 
+                    onClick={(e) => { e.target.value = null; }} // 동일 파일 재업로드 버그 방지
+                    ref={fileInputRef} style={{ display: 'none' }}
                   />
                   <button 
                     onClick={() => fileInputRef.current.click()}
@@ -431,6 +446,15 @@ export default function ItemList({ session }) {
         )}
 
       </main>
+
+      {/* 내부 모달 마운트 */}
+      <AlertModal 
+        isOpen={modalState.isOpen}
+        title={modalState.title}
+        message={modalState.message}
+        type={modalState.type}
+        onClose={() => setModalState({ ...modalState, isOpen: false })}
+      />
     </div>
   );
 }
