@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../supabaseClient';
 import AlertModal from '../components/modals/AlertModal';
+import ConfirmModal from '../components/modals/ConfirmModal';
 import CompanySettingsModal from '../components/modals/CompanySettingsModal';
 import TransactionStatementPrint from '../components/TransactionStatementPrint';
 import './ItemList.css';
@@ -21,9 +22,34 @@ export default function ItemList({ session }) {
 
   // 모달 상태
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+  const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, targetId: null, message: '' });
 
   const showAlert = (title, message, type = 'info') => {
     setModalState({ isOpen: true, title, message, type });
+  };
+
+  const confirmDelete = (id, productName) => {
+    setConfirmModalState({
+      isOpen: true,
+      targetId: id,
+      message: `[${productName}]\n\n이 발주 내역을 정말 삭제(취소)하시겠습니까?`
+    });
+  };
+
+  const executeDelete = async () => {
+    const targetId = confirmModalState.targetId;
+    setConfirmModalState({ ...confirmModalState, isOpen: false });
+
+    try {
+      const { error } = await supabase.from('onnuri_orders').delete().eq('id', targetId);
+      if (error) throw error;
+      
+      showAlert('삭제 완료', '해당 발주 내역이 성공적으로 삭제되었습니다.', 'success');
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      showAlert('삭제 실패', '발주 내역을 삭제하는 중 오류가 발생했습니다.\n' + err.message, 'error');
+    }
   };
 
   useEffect(() => {
@@ -521,9 +547,14 @@ export default function ItemList({ session }) {
                             </span>
                           </td>
                           <td style={{ padding: '1rem', textAlign: 'center' }}>
-                             <button onClick={() => setPrintOrders([o])} style={{ background: 'none', border: '1px solid #D1D5DB', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.85rem' }}>
-                               개별인쇄
-                             </button>
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                              <button onClick={() => setPrintOrders([o])} style={{ background: 'none', border: '1px solid #D1D5DB', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                                개별인쇄
+                              </button>
+                              <button onClick={() => confirmDelete(o.id, o.product_name)} style={{ background: '#FEE2E2', color: '#B91C1C', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
+                                취소(삭제)
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -544,6 +575,14 @@ export default function ItemList({ session }) {
         message={modalState.message}
         type={modalState.type}
         onClose={() => setModalState({ ...modalState, isOpen: false })}
+      />
+      <ConfirmModal 
+        isOpen={confirmModalState.isOpen}
+        title="발주 내역 삭제"
+        message={confirmModalState.message}
+        isDestructive={true}
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmModalState({ ...confirmModalState, isOpen: false })}
       />
       <CompanySettingsModal 
         isOpen={settingsModalOpen}
