@@ -34,6 +34,23 @@ export default function TransactionStatementPrint({ orders, onClose }) {
   let grandSupplyValue = 0;
   let grandTax = 0;
 
+  const getOrderIndex = (name) => {
+    if (!name) return 99;
+    const normalized = name.replace(/\s+/g, '');
+    if (normalized.includes('딥모이스처')) return 1;
+    if (normalized.includes('오일-컨트롤') || normalized.includes('오일컨트롤')) return 2;
+    if (normalized.includes('인텐시브베리어')) return 3;
+    if (normalized.includes('앰플런스하이드로') && !normalized.includes('버블') && !normalized.includes('크림')) return 4;
+    if (normalized.includes('하이드로버블')) return 5;
+    if (normalized.includes('하이드로크림')) return 6;
+    if (normalized.includes('라뉴필')) return 7;
+    if (normalized.includes('리쥬')) return 8;
+    if (normalized.includes('화이트')) return 9;
+    if (normalized.includes('클리닉스하이드로')) return 10;
+    if (normalized.includes('에이치알')) return 11;
+    return 99;
+  };
+
   const processedOrders = orders.map(o => {
     const total = o.total_amount;
     const supplyValue = Math.round(total / 1.1);
@@ -44,7 +61,7 @@ export default function TransactionStatementPrint({ orders, onClose }) {
     grandTax += tax;
 
     return { ...o, supplyValue, tax };
-  });
+  }).sort((a, b) => getOrderIndex(a.product_name) - getOrderIndex(b.product_name));
 
   // 날짜 포맷팅
   const [yyyy, mm, dd] = deliveryDate.split('-');

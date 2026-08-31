@@ -83,7 +83,33 @@ export default function ItemList({ session }) {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setOrders(data || []);
+
+      const getOrderIndex = (name) => {
+        if (!name) return 99;
+        const normalized = name.replace(/\s+/g, '');
+        if (normalized.includes('딥모이스처')) return 1;
+        if (normalized.includes('오일-컨트롤') || normalized.includes('오일컨트롤')) return 2;
+        if (normalized.includes('인텐시브베리어')) return 3;
+        if (normalized.includes('앰플런스하이드로') && !normalized.includes('버블') && !normalized.includes('크림')) return 4;
+        if (normalized.includes('하이드로버블')) return 5;
+        if (normalized.includes('하이드로크림')) return 6;
+        if (normalized.includes('라뉴필')) return 7;
+        if (normalized.includes('리쥬')) return 8;
+        if (normalized.includes('화이트')) return 9;
+        if (normalized.includes('클리닉스하이드로')) return 10;
+        if (normalized.includes('에이치알')) return 11;
+        return 99;
+      };
+
+      const sortedData = (data || []).sort((a, b) => {
+        // 일자가 다르면 일자 최신순, 같으면 품목 조건표 순서
+        if (a.order_date !== b.order_date) {
+          return new Date(b.order_date) - new Date(a.order_date);
+        }
+        return getOrderIndex(a.product_name) - getOrderIndex(b.product_name);
+      });
+
+      setOrders(sortedData);
     } catch (err) {
       console.error("발주 데이터 로드 실패:", err);
     }
