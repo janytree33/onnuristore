@@ -1,15 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
 import './TransactionStatementPrint.css';
 
 export default function TransactionStatementPrint({ orders, onClose }) {
   
+  // 명세서 상의 '납품일자' (기본값: 오늘)
+  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
+
   // 브라우저 인쇄 창 띄우기
   const handlePrint = () => {
     window.print();
   };
 
   // 총 합계 계산 (공급가액 + 세액 = 합계)
-  // 부가세 포함이므로, 역산: 공급가액 = 합계 / 1.1, 세액 = 합계 - 공급가액
   let grandTotal = 0;
   let grandSupplyValue = 0;
   let grandTax = 0;
@@ -26,13 +28,26 @@ export default function TransactionStatementPrint({ orders, onClose }) {
     return { ...o, supplyValue, tax };
   });
 
-  const today = new Date();
-  const dateString = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
+  // 날짜 포맷팅 (YYYY년 MM월 DD일)
+  const [yyyy, mm, dd] = deliveryDate.split('-');
+  const dateString = `${yyyy}년 ${parseInt(mm, 10)}월 ${parseInt(dd, 10)}일`;
 
   return (
     <div className="print-wrapper">
       {/* 인쇄 화면에서만 숨겨지는 액션 버튼 */}
       <div className="print-actions">
+        <div style={{ 
+          display: 'flex', alignItems: 'center', gap: '8px', background: 'white', 
+          padding: '6px 12px', borderRadius: '6px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' 
+        }}>
+          <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#111827' }}>납품일자 지정:</label>
+          <input 
+            type="date" 
+            value={deliveryDate} 
+            onChange={(e) => setDeliveryDate(e.target.value)} 
+            style={{ border: '1px solid #D1D5DB', borderRadius: '4px', padding: '4px', fontSize: '13px' }}
+          />
+        </div>
         <button className="close-btn" onClick={onClose}>취소(돌아가기)</button>
         <button className="print-btn" onClick={handlePrint}>인쇄하기</button>
       </div>
@@ -119,11 +134,10 @@ export default function TransactionStatementPrint({ orders, onClose }) {
           </thead>
           <tbody>
             {processedOrders.map((o, idx) => {
-              // order_date가 YYYY-MM-DD 형식이라고 가정
-              const [, mm, dd] = o.order_date.split('-');
+              // 표 안의 월/일도 사용자가 지정한 납품일자를 따름
               return (
                 <tr key={idx}>
-                  <td className="text-center">{mm}/{dd}</td>
+                  <td className="text-center">{parseInt(mm, 10)}/{parseInt(dd, 10)}</td>
                   <td>{o.product_name}</td>
                   <td className="text-right">{o.quantity}</td>
                   <td className="text-right">{o.supply_price.toLocaleString()}</td>
