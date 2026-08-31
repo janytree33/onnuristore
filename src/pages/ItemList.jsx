@@ -2,15 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../supabaseClient';
+import './ItemList.css'; // 새로 만든 전용 CSS 적용
 
 export default function ItemList({ session }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState([]); // 업로드된 발주 데이터
+  const [orders, setOrders] = useState([]); 
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
-  // 기존 물품등록서 로드 (UI용)
   useEffect(() => {
     const loadItems = async () => {
       try {
@@ -41,7 +41,6 @@ export default function ItemList({ session }) {
     loadItems();
   }, []);
 
-  // 엑셀 업로드 핸들러
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -52,7 +51,6 @@ export default function ItemList({ session }) {
         const bstr = evt.target.result;
         const workbook = XLSX.read(bstr, { type: 'binary' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        // 발주서는 26행(인덱스 25)부터 데이터가 시작됨을 이전 파싱으로 확인
         const data = XLSX.utils.sheet_to_json(sheet, { range: 25, defval: null });
         
         const parsedOrders = data
@@ -62,15 +60,15 @@ export default function ItemList({ session }) {
             qty: row['최종 발주수량'] || 0,
             date: row['입고일'] || '',
             total: row['합계'] || 0,
-            shippingMethod: '택배발송', // 기본값
+            shippingMethod: '택배발송',
             trackingNumber: ''
           }));
         
         setOrders(parsedOrders);
-        alert(`엑셀 파싱 성공! 총 ${parsedOrders.length}건의 발주가 확인되었습니다.\n(대시보드 하단에 목록이 표시됩니다.)`);
+        alert(`엑셀 파싱 성공! 총 ${parsedOrders.length}건의 발주가 확인되었습니다.\n(화면 맨 아래 대시보드를 확인하세요.)`);
       } catch (err) {
         console.error(err);
-        alert('엑셀 파싱 중 오류가 발생했습니다. 파일 형식을 확인해주세요.');
+        alert('엑셀 파싱 중 오류가 발생했습니다. 온누리스토어 발주서 형식이 맞는지 확인해주세요.');
       }
     };
     reader.readAsBinaryString(file);
@@ -81,53 +79,65 @@ export default function ItemList({ session }) {
   };
 
   return (
-    <div style={{ backgroundColor: 'var(--jt-bg-layout)', minHeight: '100vh', paddingBottom: 'var(--jt-space-10)' }}>
-      {/* 헤더 */}
+    <div style={{ backgroundColor: 'var(--jt-bg-layout, #F3F4F6)', minHeight: '100vh', paddingBottom: '4rem', color: 'var(--jt-color-text, #111827)' }}>
+      {/* 🔹 상단 헤더 (복지몰 스타일 유사하게) */}
       <header style={{ 
-        backgroundColor: 'white', 
-        padding: 'var(--jt-space-4) var(--jt-space-6)', 
-        borderBottom: '1px solid var(--jt-color-border)' 
+        backgroundColor: 'var(--jt-bg-container, #ffffff)', 
+        padding: '1.5rem 2rem', 
+        borderBottom: '1px solid var(--jt-color-border, #E5E7EB)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '2rem'
       }}>
-        <div style={{ 
-          maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' 
-        }}>
-          <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: 'var(--jt-color-text)' }}>
-            온누리스토어 발주관리
-          </h1>
-          <div>
-            {session ? (
-              <button className="jt-btn" onClick={handleLogout} style={{ backgroundColor: 'white', border: '1px solid var(--jt-color-border)', color: 'var(--jt-color-text)' }}>
-                로그아웃
-              </button>
-            ) : (
-              <button className="jt-btn" onClick={() => navigate('/login')} style={{ backgroundColor: 'var(--jt-color-primary)', color: 'white' }}>
-                <span className="material-symbols-rounded" style={{ fontSize: '18px', marginRight: '4px' }}>lock</span>
-                직원 로그인
-              </button>
-            )}
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>온누리스토어 B2B 발주관리</h1>
+          <span style={{ fontSize: '0.85rem', color: 'var(--jt-color-text-secondary, #6B7280)', marginTop: '0.3rem' }}>
+            담당자 전용 발주 파싱 및 상품 목록
+          </span>
+        </div>
+        
+        <div>
+          {session ? (
+            <button onClick={handleLogout} style={{
+              padding: '0.55rem 1.1rem', borderRadius: '9999px', border: '1px solid var(--jt-color-border, #D1D5DB)',
+              background: 'white', cursor: 'pointer', fontWeight: 600
+            }}>
+              로그아웃
+            </button>
+          ) : (
+            <button onClick={() => navigate('/login')} style={{
+              padding: '0.55rem 1.1rem', borderRadius: '9999px', border: 'none',
+              background: 'var(--jt-color-primary, #1F2328)', color: 'white', cursor: 'pointer', fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: '4px'
+            }}>
+              <span className="material-symbols-rounded" style={{ fontSize: '18px' }}>lock</span>
+              직원 로그인
+            </button>
+          )}
         </div>
       </header>
 
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: 'var(--jt-space-6)' }}>
+      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
         
-        {/* 발주서 업로드 섹션 */}
+        {/* 📥 엑셀 업로드 섹션 */}
         {session && (
           <section style={{ 
-            backgroundColor: 'white', 
-            borderRadius: 'var(--jt-r-lg)', 
-            padding: 'var(--jt-space-6)', 
-            marginBottom: 'var(--jt-space-8)',
-            border: '1px solid var(--jt-color-border)',
-            boxShadow: 'var(--jt-shadow-sm, 0 1px 3px rgba(0,0,0,0.05))'
+            backgroundColor: 'var(--jt-bg-container, #ffffff)', 
+            borderRadius: 'var(--jt-r-lg, 12px)', 
+            padding: '1.5rem', 
+            marginBottom: '2rem',
+            border: '1px solid var(--jt-color-border, #E5E7EB)',
+            boxShadow: 'var(--jt-shadow-sm, 0 1px 2px rgba(0,0,0,0.05))'
           }}>
-            <h2 style={{ margin: '0 0 var(--jt-space-4) 0', fontSize: '18px', color: 'var(--jt-color-text)' }}>
-              📥 온누리스토어 발주서 업로드
+            <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="material-symbols-rounded" style={{ color: 'var(--jt-color-primary)' }}>upload_file</span>
+              온누리스토어 발주서 자동 파싱
             </h2>
-            <p style={{ color: 'var(--jt-color-text-secondary)', fontSize: '14px', marginBottom: 'var(--jt-space-4)' }}>
-              엑셀(.xlsx) 발주서를 업로드하면 품목과 수량을 자동으로 인식하여 대시보드에 연동합니다.
+            <p style={{ color: 'var(--jt-color-text-secondary, #6B7280)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              발주서 엑셀 파일을 업로드하시면 하단 대시보드에 품목과 수량이 정리됩니다.
             </p>
-            <div style={{ display: 'flex', gap: 'var(--jt-space-3)' }}>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <input 
                 type="file" 
                 accept=".xlsx, .xls" 
@@ -136,157 +146,137 @@ export default function ItemList({ session }) {
                 style={{ display: 'none' }}
               />
               <button 
-                className="jt-btn" 
                 onClick={() => fileInputRef.current.click()}
-                style={{ backgroundColor: 'var(--jt-color-primary)', color: 'white' }}
+                style={{ 
+                  background: 'var(--jt-color-primary, #1F2328)', color: 'white', padding: '0.5rem 1rem', 
+                  borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 600 
+                }}
               >
-                엑셀 파일 선택
+                엑셀 첨부하기
               </button>
               {orders.length > 0 && (
-                <span style={{ display: 'flex', alignItems: 'center', fontSize: '14px', color: 'var(--jt-color-accent)', fontWeight: 600 }}>
+                <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.9rem', color: 'var(--jt-color-accent, #305CDE)', fontWeight: 600 }}>
                   <span className="material-symbols-rounded" style={{ fontSize: '18px', marginRight: '4px' }}>check_circle</span>
-                  {orders.length}개 품목 파싱 완료
+                  {orders.length}개 품목 파싱 완료 (하단 표 확인)
                 </span>
               )}
             </div>
           </section>
         )}
 
-        {/* 상품 목록 (참고용 쇼핑몰 스타일 뷰) */}
-        <section>
-          <h2 style={{ margin: '0 0 var(--jt-space-4) 0', fontSize: '18px', color: 'var(--jt-color-text)' }}>
-            상품 목록
-          </h2>
-          <p style={{ color: 'var(--jt-color-text-secondary)', fontSize: '14px', marginBottom: 'var(--jt-space-5)' }}>
+        {/* 📦 상품 목록 (staff-mall 완벽 복제) */}
+        <section className="product-list-container">
+          <h2 style={{ fontSize: '1.3rem', fontWeight: '800', marginBottom: '0.5rem' }}>상품 목록</h2>
+          <p style={{ color: 'var(--jt-color-text-secondary, #6B7280)', marginBottom: '1.5rem', fontWeight: '600', fontSize: '0.9rem' }}>
             원하시는 상품의 구매 대상과 수량을 선택한 후 장바구니에 담아주세요.
           </p>
 
           {loading ? (
-            <div>데이터를 불러오는 중입니다...</div>
+            <div style={{ padding: '2rem', textAlign: 'center' }}>상품 데이터를 불러오는 중입니다...</div>
           ) : (
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
-              gap: 'var(--jt-space-5)' 
-            }}>
+            <div className="product-grid">
               {items.map((item, idx) => (
-                <div key={idx} style={{
-                  backgroundColor: 'white',
-                  borderRadius: 'var(--jt-r-md, 8px)',
-                  padding: 'var(--jt-space-5)',
-                  border: '1px solid var(--jt-color-border, #E5E7EB)',
-                  boxShadow: 'var(--jt-shadow-sm, 0 1px 2px rgba(0,0,0,0.05))',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--jt-space-4)'
-                }}>
+                <div key={idx} className="product-card">
                   
-                  {/* 상단: 텍스트 및 이미지 레이아웃 */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1, paddingRight: 'var(--jt-space-3)' }}>
-                      <h3 style={{ margin: '0 0 var(--jt-space-3) 0', fontSize: '16px', fontWeight: 700, color: 'var(--jt-color-text)', wordBreak: 'keep-all' }}>
+                  {/* 상단: 타이틀 & 이미지 */}
+                  <div style={{
+                    padding: '1.25rem 1.25rem 1rem 1.25rem',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    gap: '1rem', borderBottom: '1.5px solid var(--jt-color-border, #E5E7EB)'
+                  }}>
+                    {/* 타이틀 및 아이콘 */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', wordBreak: 'keep-all', lineHeight: '1.4' }}>
                         {item.name}
                       </h3>
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '6px' }}>
                         <button 
-                          onClick={() => alert('전자라벨 페이지 연동')}
-                          title="전자라벨"
+                          onClick={() => alert('전자라벨 페이지 연결')}
+                          title="전자라벨 팝업 보기"
                           style={{
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            width: '28px', height: '28px', borderRadius: '50%',
-                            backgroundColor: 'var(--jt-color-text)', border: 'none', cursor: 'pointer',
-                            color: 'white'
+                            background: 'var(--jt-color-primary, #1F2328)', border: 'none', borderRadius: '50%',
+                            width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', boxShadow: 'var(--jt-shadow-sm)'
                           }}
                         >
-                          <span className="material-symbols-rounded" style={{ fontSize: '16px' }}>search</span>
+                          <span className="material-symbols-rounded" style={{ color: 'white', fontSize: '15px' }}>search</span>
                         </button>
                         <button 
-                          onClick={() => alert('상세페이지 연동')}
-                          title="상세페이지"
+                          onClick={() => alert('상세페이지 이미지 보기')}
+                          title="상세페이지 보기"
                           style={{
-                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                            width: '28px', height: '28px', borderRadius: '50%',
-                            backgroundColor: '#9CA3AF', border: 'none', cursor: 'pointer',
-                            color: 'white'
+                            background: '#9ca3af', border: 'none', borderRadius: '50%',
+                            width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', boxShadow: 'var(--jt-shadow-sm)'
                           }}
                         >
-                          <span className="material-symbols-rounded" style={{ fontSize: '16px' }}>image</span>
+                          <span className="material-symbols-rounded" style={{ color: 'white', fontSize: '15px' }}>image</span>
                         </button>
                       </div>
                     </div>
-                    {/* 이미지 영역 (가상) */}
-                    <div style={{ 
-                      width: '80px', height: '80px', 
-                      backgroundColor: 'var(--jt-bg-layout)', 
-                      borderRadius: 'var(--jt-r-sm)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: 'var(--jt-color-text-tertiary)'
+                    
+                    {/* 우측 썸네일 박스 (이미지가 없으므로 box 처리) */}
+                    <div style={{
+                      width: '100px', height: '100px', minWidth: '100px', minHeight: '100px',
+                      backgroundColor: '#f8f9fa', border: '1px solid #f1f5f9', borderRadius: '12px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
                     }}>
-                      <span className="material-symbols-rounded" style={{ fontSize: '32px' }}>inventory_2</span>
+                       <span className="material-symbols-rounded" style={{ fontSize: '32px', color: '#d1d5db' }}>inventory_2</span>
                     </div>
                   </div>
 
-                  {/* 구매 대상 선택 */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '12px', color: 'var(--jt-color-text-secondary)' }}>구매 대상</label>
-                    <select className="jt-input" style={{ width: '100%', fontSize: '14px', height: '36px' }}>
-                      <option>본인구매 (월 1개 한정)</option>
-                      <option>가족구매</option>
-                      <option>지인구매</option>
-                    </select>
-                  </div>
+                  {/* 하단 폼 영역 */}
+                  <div className="product-options" style={{ padding: '1rem 1.25rem 0 1.25rem' }}>
+                    
+                    <div className="option-group">
+                      <label>구매 대상</label>
+                      <select className="jt-input" style={{ height: '38px', borderRadius: '6px', border: '1px solid #D1D5DB' }}>
+                        <option>본인구매 (월 1개 한정)</option>
+                        <option>가족구매</option>
+                        <option>지인구매</option>
+                      </select>
+                    </div>
 
-                  {/* 가격 표시 블록 */}
-                  <div style={{
-                    backgroundColor: 'var(--jt-bg-layout)',
-                    padding: 'var(--jt-space-4)',
-                    borderRadius: 'var(--jt-r-sm)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: session ? 'space-between' : 'center',
-                    minHeight: '44px'
-                  }}>
-                    {session ? (
-                      <>
-                        <span style={{ fontSize: '13px', color: 'var(--jt-color-text-secondary)' }}>적용 단가:</span>
-                        <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--jt-color-accent)' }}>
-                          {item.supplyPrice.toLocaleString()}원
-                        </span>
-                      </>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--jt-color-text)', filter: 'blur(0)' }}>
-                        <span className="material-symbols-rounded" style={{ fontSize: '16px' }}>lock</span>
-                        <span style={{ fontSize: '14px', fontWeight: 600 }}>로그인 후 확인</span>
-                        {/* 흐린 텍스트 페이크 */}
-                        <span style={{ color: 'transparent', textShadow: '0 0 8px rgba(0,0,0,0.2)', marginLeft: '8px' }}>5,000원</span>
+                    <div className="price-display" style={{ position: 'relative' }}>
+                      {!session && (
+                        <div style={{
+                          position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: 'rgba(255, 255, 255, 0.5)', backdropFilter: 'blur(3px)',
+                          zIndex: 2, borderRadius: '8px', color: 'var(--jt-color-primary, #1F2328)',
+                          fontWeight: 'bold', fontSize: '13px'
+                        }}>
+                          <span className="material-symbols-rounded" style={{ fontSize: '18px', marginRight: '4px' }}>lock</span>
+                          로그인 후 확인
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', filter: !session ? 'blur(4px)' : 'none' }}>
+                        <span className="price-label">적용 단가:</span>
+                        <span className="price-value">{item.supplyPrice.toLocaleString()}원</span>
                       </div>
-                    )}
-                  </div>
-
-                  {/* 수량 선택 */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '12px', color: 'var(--jt-color-text-secondary)' }}>수량</label>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <button style={{ width: '32px', height: '32px', border: '1px solid var(--jt-color-border)', backgroundColor: 'white', cursor: 'pointer' }}>-</button>
-                      <input type="text" value="0" readOnly style={{ width: '50px', height: '32px', borderTop: '1px solid var(--jt-color-border)', borderBottom: '1px solid var(--jt-color-border)', borderLeft: 'none', borderRight: 'none', textAlign: 'center' }} />
-                      <button style={{ width: '32px', height: '32px', border: '1px solid var(--jt-color-border)', backgroundColor: 'white', cursor: 'pointer' }}>+</button>
                     </div>
+
+                    <div className="option-group quantity-group">
+                      <label>수량</label>
+                      <div className="quantity-controls">
+                        <button className="qty-btn">-</button>
+                        <input type="text" className="qty-input" value="0" readOnly />
+                        <button className="qty-btn">+</button>
+                      </div>
+                    </div>
+
                   </div>
 
-                  {/* 하단 장바구니 버튼 */}
+                  {/* 장바구니 버튼 */}
                   <button 
-                    className="jt-btn" 
+                    className="add-to-cart-btn" 
                     disabled={!session}
                     style={{
-                      width: '100%', 
-                      backgroundColor: session ? '#4B5563' : '#9CA3AF', /* Charcoal 톤 */
-                      color: 'white',
-                      border: 'none',
-                      marginTop: 'var(--jt-space-2)',
-                      cursor: session ? 'pointer' : 'not-allowed'
+                      background: session ? 'var(--jt-color-text-secondary, #4B5563)' : '#9ca3af', // 원본앱의 차콜/회색 느낌
+                      color: 'white'
                     }}
                   >
-                    {session ? '장바구니 담기' : '로그인 후 이용 가능'}
+                    {!session ? '로그인 후 이용 가능' : '장바구니 담기'}
                   </button>
 
                 </div>
@@ -295,29 +285,29 @@ export default function ItemList({ session }) {
           )}
         </section>
 
-        {/* 발주 결과 테이블 (임시 대시보드 역할) */}
+        {/* 📊 발주 파싱 결과 (대시보드) */}
         {orders.length > 0 && (
-          <section style={{ marginTop: 'var(--jt-space-8)' }}>
-            <h2 style={{ margin: '0 0 var(--jt-space-4) 0', fontSize: '18px', color: 'var(--jt-color-text)' }}>
-              발주서 파싱 결과 (대시보드)
+          <section style={{ marginTop: '2rem' }}>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: '800', marginBottom: '1rem', borderBottom: '2px solid var(--jt-color-text)', paddingBottom: '0.5rem' }}>
+              발주서 파싱 결과표
             </h2>
             <div className="jt-table-wrap">
-              <table className="jt-table" style={{ width: '100%' }}>
+              <table className="jt-table" style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'white' }}>
                 <thead>
-                  <tr>
-                    <th>품목명</th>
-                    <th className="jt-num">수량</th>
-                    <th className="jt-num">합계금액</th>
-                    <th>납품일자</th>
+                  <tr style={{ backgroundColor: 'var(--jt-bg-layout)' }}>
+                    <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '1px solid #D1D5DB' }}>품목명</th>
+                    <th className="jt-num" style={{ padding: '0.75rem', borderBottom: '1px solid #D1D5DB' }}>최종 발주수량</th>
+                    <th className="jt-num" style={{ padding: '0.75rem', borderBottom: '1px solid #D1D5DB' }}>합계금액</th>
+                    <th style={{ padding: '0.75rem', borderBottom: '1px solid #D1D5DB' }}>입고(납품)일자</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orders.map((o, i) => (
-                    <tr key={i}>
-                      <td>{o.name}</td>
-                      <td className="jt-num">{o.qty}</td>
-                      <td className="jt-num">{o.total.toLocaleString()}원</td>
-                      <td>{o.date}</td>
+                    <tr key={i} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                      <td style={{ padding: '0.75rem' }}>{o.name}</td>
+                      <td className="jt-num" style={{ padding: '0.75rem' }}>{o.qty}개</td>
+                      <td className="jt-num" style={{ padding: '0.75rem' }}>{o.total.toLocaleString()}원</td>
+                      <td style={{ padding: '0.75rem', textAlign: 'center' }}>{o.date}</td>
                     </tr>
                   ))}
                 </tbody>
