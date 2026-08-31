@@ -85,7 +85,21 @@ export default function ItemList({ session }) {
         const bstr = evt.target.result;
         const workbook = XLSX.read(bstr, { type: 'binary' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(sheet, { range: 25, defval: null });
+        const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        let headerIndex = -1;
+        for (let i = 0; i < rawRows.length; i++) {
+          const rowArr = rawRows[i];
+          if (rowArr && rowArr.some(cell => cell && typeof cell === 'string' && cell.includes('품목'))) {
+            headerIndex = i;
+            break;
+          }
+        }
+
+        if (headerIndex === -1) {
+          throw new Error("발주서 양식에서 '품목' 열을 찾을 수 없습니다.");
+        }
+
+        const data = XLSX.utils.sheet_to_json(sheet, { range: headerIndex, defval: null });
         
         const parsedOrders = data
           .filter(row => row['품목'])
