@@ -20,15 +20,49 @@ export default function ItemList({ session }) {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         
         const rawData = XLSX.utils.sheet_to_json(sheet, { defval: null });
+        const orderGuide = [
+          '딥모이스처',
+          '오일컨트롤',
+          '오일-컨트롤',
+          '인텐시브 베리어',
+          '앰플런스 하이드로', // 주의: 하이드로 크림이나 버블폼보다 먼저 매칭되도록 처리 필요
+          '하이드로 버블',
+          '하이드로 크림',
+          '라뉴필',
+          '리쥬',
+          '화이트',
+          '클리닉스 하이드로',
+          '에이치알'
+        ];
+
+        // 앰플런스 하이드로는 이름이 겹치므로 정확한 처리를 위해 별도 함수
+        const getOrderIndex = (name) => {
+          // 이름 내 띄어쓰기 무시하고 비교
+          const normalized = name.replace(/\s+/g, '');
+          if (normalized.includes('딥모이스처')) return 1;
+          if (normalized.includes('오일-컨트롤') || normalized.includes('오일컨트롤')) return 2;
+          if (normalized.includes('인텐시브베리어')) return 3;
+          if (normalized.includes('앰플런스하이드로') && !normalized.includes('버블') && !normalized.includes('크림')) return 4;
+          if (normalized.includes('하이드로버블')) return 5;
+          if (normalized.includes('하이드로크림')) return 6;
+          if (normalized.includes('라뉴필')) return 7;
+          if (normalized.includes('리쥬')) return 8;
+          if (normalized.includes('화이트')) return 9;
+          if (normalized.includes('클리닉스하이드로')) return 10;
+          if (normalized.includes('에이치알')) return 11;
+          return 99; // 기타
+        };
+
         const parsedItems = rawData
           .filter(row => row['제품명'] || row['품명'] || row['상품명'])
           .map(row => {
             const name = row['제품명'] || row['품명'] || row['상품명'];
             const consumerPrice = row['소비자가'] || row['정상가'] || 0;
             const supplyPrice = consumerPrice * 0.45;
-            return { name, consumerPrice, supplyPrice };
+            return { name, consumerPrice, supplyPrice, sortOrder: getOrderIndex(name) };
           })
-          .filter(item => item.consumerPrice > 0);
+          .filter(item => item.consumerPrice > 0)
+          .sort((a, b) => a.sortOrder - b.sortOrder);
           
         setItems(parsedItems);
       } catch (err) {
