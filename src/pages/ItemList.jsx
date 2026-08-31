@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../supabaseClient';
 import AlertModal from '../components/modals/AlertModal';
+import CompanySettingsModal from '../components/modals/CompanySettingsModal';
 import TransactionStatementPrint from '../components/TransactionStatementPrint';
 import './ItemList.css';
 
@@ -13,7 +14,8 @@ export default function ItemList({ session }) {
   const [activeTab, setActiveTab] = useState('master');
   const [orders, setOrders] = useState([]); 
   const [isUploading, setIsUploading] = useState(false);
-  const [printOrders, setPrintOrders] = useState([]); // 명세서 출력할 주문 목록
+  const [printOrders, setPrintOrders] = useState([]); 
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -136,16 +138,29 @@ export default function ItemList({ session }) {
         
         const parsedOrders = data
           .filter(row => row['품목'])
-          .map(row => ({
-            order_date: orderDate,
-            product_name: row['품목'],
-            quantity: row['최종 발주수량'] || 0,
-            supply_price: row['공급가\n(VAT 포함)'] || row['공급가'] || 0,
-            total_amount: row['합계'] || 0,
-            shipping_method: '택배발송',
-            tracking_number: '',
-            status: '발주등록'
-          }))
+          .map(row => {
+            const rawName = row['품목'];
+            const lastUnderscoreIdx = rawName.lastIndexOf('_');
+            let productName = rawName;
+            let spec = '';
+            
+            if (lastUnderscoreIdx !== -1) {
+              productName = rawName.substring(0, lastUnderscoreIdx);
+              spec = rawName.substring(lastUnderscoreIdx + 1);
+            }
+
+            return {
+              order_date: orderDate,
+              product_name: productName.trim(),
+              spec: spec.trim(),
+              quantity: row['최종 발주수량'] || 0,
+              supply_price: row['공급가\n(VAT 포함)'] || row['공급가'] || 0,
+              total_amount: row['합계'] || 0,
+              shipping_method: '택배발송',
+              tracking_number: '',
+              status: '발주등록'
+            };
+          })
           .filter(order => order.quantity > 0);
 
         if (parsedOrders.length === 0) {
@@ -274,7 +289,22 @@ export default function ItemList({ session }) {
         {/* ==================================================== */}
         {activeTab === 'master' && (
           <section className="product-list-container">
-            <h2 style={{ fontSize: '1.3rem', fontWeight: '800', marginBottom: '0.5rem' }}>제품 기준정보</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', marginBottom: '0.5rem' }}>
+              <h2 style={{ fontSize: '1.3rem', fontWeight: '800', margin: 0 }}>제품 기준정보</h2>
+              {session && (
+                <button 
+                  onClick={() => setSettingsModalOpen(true)}
+                  style={{
+                    background: 'white', color: 'var(--jt-color-text)', padding: '0.5rem 1rem', 
+                    borderRadius: '8px', border: '1px solid #D1D5DB', cursor: 'pointer', fontWeight: 600,
+                    display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9rem'
+                  }}
+                >
+                  <span className="material-symbols-rounded" style={{ fontSize: '16px' }}>settings</span>
+                  거래처 정보 관리
+                </button>
+              )}
+            </div>
             <p style={{ color: 'var(--jt-color-text-secondary, #6B7280)', marginBottom: '1.5rem', fontWeight: '600', fontSize: '0.9rem' }}>
               온누리스토어에 납품되는 11종 화장품의 기본 정보와 공급 단가를 확인합니다. (장바구니 기능 제거됨)
             </p>
@@ -488,6 +518,10 @@ export default function ItemList({ session }) {
         message={modalState.message}
         type={modalState.type}
         onClose={() => setModalState({ ...modalState, isOpen: false })}
+      />
+      <CompanySettingsModal 
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
       />
     </div>
   );
