@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../supabaseClient';
 import AlertModal from '../components/modals/AlertModal';
+import TransactionStatementPrint from '../components/TransactionStatementPrint';
 import './ItemList.css';
 
 export default function ItemList({ session }) {
@@ -12,6 +13,7 @@ export default function ItemList({ session }) {
   const [activeTab, setActiveTab] = useState('master');
   const [orders, setOrders] = useState([]); 
   const [isUploading, setIsUploading] = useState(false);
+  const [printOrders, setPrintOrders] = useState([]); // 명세서 출력할 주문 목록
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -185,6 +187,11 @@ export default function ItemList({ session }) {
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
+
+  // 인쇄 모드일 때는 인쇄 화면만 렌더링
+  if (printOrders.length > 0) {
+    return <TransactionStatementPrint orders={printOrders} onClose={() => setPrintOrders([])} />;
+  }
 
   return (
     <div style={{ backgroundColor: 'var(--jt-bg-layout, #F3F4F6)', minHeight: '100vh', paddingBottom: '4rem', color: 'var(--jt-color-text, #111827)' }}>
@@ -397,8 +404,29 @@ export default function ItemList({ session }) {
             {/* 발주 이력 리스트 */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', marginBottom: '1rem' }}>
-                <h2 style={{ fontSize: '1.3rem', fontWeight: '800', margin: 0 }}>발주 이력 및 출고 관리</h2>
-                <span style={{ fontSize: '0.9rem', color: 'var(--jt-color-text-secondary)' }}>총 {orders.length}건의 데이터</span>
+                <div>
+                  <h2 style={{ fontSize: '1.3rem', fontWeight: '800', margin: 0, marginBottom: '0.4rem' }}>발주 이력 및 출고 관리</h2>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--jt-color-text-secondary)' }}>총 {orders.length}건의 데이터</span>
+                </div>
+                <button 
+                  onClick={() => {
+                    // 현재는 데모로 전체 목록을 명세서로 띄웁니다.
+                    // 추후 체크박스로 선택된 항목만 띄우도록 확장 가능
+                    if (orders.length === 0) {
+                      showAlert('알림', '출력할 발주 내역이 없습니다.', 'info');
+                      return;
+                    }
+                    setPrintOrders(orders);
+                  }}
+                  style={{
+                    background: 'white', color: 'var(--jt-color-primary, #1F2328)', padding: '0.6rem 1rem', 
+                    borderRadius: '8px', border: '1px solid var(--jt-color-primary, #1F2328)', cursor: 'pointer', fontWeight: 600,
+                    display: 'flex', alignItems: 'center', gap: '4px'
+                  }}
+                >
+                  <span className="material-symbols-rounded" style={{ fontSize: '18px' }}>print</span>
+                  전체 거래명세서 인쇄
+                </button>
               </div>
               
               <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #E5E7EB', backgroundColor: 'white' }}>
@@ -410,12 +438,13 @@ export default function ItemList({ session }) {
                       <th style={{ padding: '1rem', borderBottom: '1px solid #E5E7EB', fontSize: '0.9rem', textAlign: 'right' }}>수량</th>
                       <th style={{ padding: '1rem', borderBottom: '1px solid #E5E7EB', fontSize: '0.9rem', textAlign: 'right' }}>합계금액</th>
                       <th style={{ padding: '1rem', borderBottom: '1px solid #E5E7EB', fontSize: '0.9rem', textAlign: 'center' }}>상태</th>
+                      <th style={{ padding: '1rem', borderBottom: '1px solid #E5E7EB', fontSize: '0.9rem', textAlign: 'center' }}>관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {orders.length === 0 ? (
                       <tr>
-                        <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: '#6B7280' }}>
+                        <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: '#6B7280' }}>
                           등록된 발주 내역이 없습니다. 상단에서 엑셀을 업로드해주세요.
                         </td>
                       </tr>
@@ -434,6 +463,11 @@ export default function ItemList({ session }) {
                             }}>
                               {o.status}
                             </span>
+                          </td>
+                          <td style={{ padding: '1rem', textAlign: 'center' }}>
+                             <button onClick={() => setPrintOrders([o])} style={{ background: 'none', border: '1px solid #D1D5DB', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                               개별인쇄
+                             </button>
                           </td>
                         </tr>
                       ))
